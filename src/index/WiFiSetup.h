@@ -52,6 +52,7 @@ namespace WifiSetup {
             String pass = server.arg("pass");
 
             ssid.trim();
+            pass.trim();
 
             if (ssid.length() == 0)
             {

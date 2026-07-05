@@ -1,9 +1,11 @@
 #include <Arduino.h>
 #include "WiFiSetup.h"
 #include "RadioTochka.h"
+#include "Potentiometer.h"
 
 String ssid = "";
 String password = "";
+Potentiometer potentiometer(3,2.0);
 
 void setup() {
     Serial.begin(115200);
@@ -31,6 +33,7 @@ void setup() {
     RadioTochka::begin();
 
     while (!RadioTochka::openStream()) {
+        Serial.println("Trying to open stream...");
         delay(1000);
     }
 
@@ -38,6 +41,7 @@ void setup() {
 }
 
 void loop() {
+    delay(1);
 
     if (WifiSetup::isPortalActive()) {
         WifiSetup::handleLoop();
@@ -45,6 +49,7 @@ void loop() {
     }
 
     RadioTochka::handleLoop();
+    RadioTochka::setVolume(potentiometer.getValueSmoothed());
 
     //wifi watchdog
     static uint32_t lastCheck = millis();

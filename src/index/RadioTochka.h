@@ -1,4 +1,3 @@
-
 #include <Arduino.h>
 #include <WiFi.h>
 #include "esp_wifi.h"
@@ -26,9 +25,18 @@ namespace RadioTochka {
 
         URLStream urlStream;
         I2SStream i2s;
+
+        // volume пише у фізичний I2S
+        VolumeStream volume(i2s);
+
         MP3DecoderHelix mp3;
-        EncodedAudioStream decoder(&i2s, &mp3);
+
+        // decoder пише у volume
+        EncodedAudioStream decoder(&volume, &mp3);
+
         StreamCopy copier(decoder, urlStream);
+
+        double currentVolume = 0.0;
     }
 
     bool connectToWiFi(String ssid, String password) {
@@ -80,13 +88,42 @@ namespace RadioTochka {
         cfg.bits_per_sample = 16;
 
         i2s.begin(cfg);
+
+        auto vcfg = volume.defaultConfig();
+        vcfg.copyFrom(cfg);
+        vcfg.allow_boost = true;
+        volume.setVolume(0.0);
+        volume.begin(vcfg);
+
         decoder.begin();
+    }
+
+    void setVolume(double value) {
+        if (value < 0.0) value = 0.0;
+        if (value > 2.0) value = 2.0;
+        if (currentVolume == value) return;
+        currentVolume = value;
+        volume.setVolume(currentVolume);
+        Serial.printf("Volume set to %f\n",value);
+    }
+
+    float getVolume() {
+        return currentVolume;
+    }
+
+    void volumeUp() {
+        setVolume(currentVolume + 0.1f);
+    }
+
+    void volumeDown() {
+        setVolume(currentVolume - 0.1f);
     }
 
     bool openStream() {
         Serial.println("URL stream begin");
         urlStream.end();
         delay(300);
+
         if (urlStream.begin(url, "audio/mpeg"))
         {
             Serial.println("URL stream opened");
