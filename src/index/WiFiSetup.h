@@ -4,6 +4,7 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <Preferences.h>
+#include "esp_wifi.h"
 
 namespace WifiSetup {
 
@@ -15,6 +16,9 @@ namespace WifiSetup {
 
         const char* AP_NAME = "RadioTochkaSetup";
         const char* AP_PASS = "12345678";
+
+        String ssid = "";
+        String password = "";
 
         //language=HTML
         const char HTML[] PROGMEM = R"HTML(
@@ -73,27 +77,27 @@ namespace WifiSetup {
         }
     }
 
-    inline bool loadCredentials(String& ssid, String& pass) {
+    inline bool loadCredentials() {
         prefs.begin("wifi", true);
         ssid = prefs.getString("ssid", "");
-        pass = prefs.getString("pass", "");
+        password = prefs.getString("pass", "");
         prefs.end();
         return ssid.length() > 0;
     }
 
     inline bool hasCredentials() {
-        String ssid, pass;
-        return loadCredentials(ssid, pass);
+        return loadCredentials();
     }
 
     inline void clearCredentials() {
         prefs.begin("wifi", false);
         prefs.clear();
         prefs.end();
+        ssid = "";
+        password = "";
     }
 
-    inline void beginPortal()
-    {
+    inline void beginPortal() {
         WiFi.mode(WIFI_OFF);
         delay(1000);
 
@@ -134,9 +138,45 @@ namespace WifiSetup {
         portalActive = true;
     }
 
+    inline bool connectToWiFi() {
+        WiFi.mode(WIFI_STA);
+        WiFi.persistent(false);
+        WiFi.setSleep(false);
+        esp_wifi_set_ps(WIFI_PS_NONE);
+        WiFi.setTxPower(WIFI_POWER_17dBm);
+
+        WiFi.disconnect(false);
+        delay(500);
+
+        Serial.println("WiFi begin...");
+        WiFi.begin(ssid, password);
+
+        uint32_t start = millis();
+
+        while (millis() - start < 20000) {
+            wl_status_t s = WiFi.status();
+
+            Serial.printf("status=%d RSSI=%d\n", s, WiFi.RSSI());
+
+            if (s == WL_CONNECTED) {
+                Serial.println("WiFi connected");
+                Serial.println(WiFi.localIP());
+                return true;
+            }
+
+            delay(500);
+        }
+
+        Serial.println("WiFi connect timeout");
+
+        WiFi.disconnect(false);
+        delay(500);
+
+        return false;
+    }
+
     inline void handleLoop() {
-        if (portalActive)
-            server.handleClient();
+        if (portalActive) server.handleClient();
     }
 
     inline bool isPortalActive() {

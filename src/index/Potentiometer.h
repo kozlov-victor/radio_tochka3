@@ -1,3 +1,8 @@
+#pragma once
+
+#include <Arduino.h>
+
+#include "RadioTochka.h"
 
 class Potentiometer {
 private:
@@ -5,41 +10,26 @@ private:
     float maxValue;
     int adcMax;
     float filtered = 0.0f;
-    int lastStep = -1;
-    bool initialized = false;
     float smoothFactor = 0.85f; // 0.7 - smoother
+    float roundTo = 0.05;
 
 public:
-    Potentiometer(int pin, float maxValue, int adcMax = 4095):pin(pin),maxValue(maxValue),adcMax(adcMax) {}
+    Potentiometer(const int pin,const float maxValue, const int adcMax = 4095):pin(pin),maxValue(maxValue),adcMax(adcMax) {}
 
     float getValueSmoothed() {
-        int raw = analogRead(pin);
-
-        float value = (float)raw / adcMax * maxValue;
-
-        if (!initialized) {
-            filtered = value;
-            lastStep = (int)roundf(filtered * 10.0f);
-            initialized = true;
-            return lastStep / 10.0f;
-        }
-
+        const int raw = analogRead(pin);
+        const float value = (float)raw / adcMax * maxValue;
         filtered = filtered * smoothFactor + value * (1.0f - smoothFactor);
-
-        int step = (int)roundf(filtered * 10.0f);
-
-        int maxStep = (int)roundf(maxValue * 10.0f);
-
-        if (step < 0) step = 0;
-        if (step > maxStep) step = maxStep;
-
-        lastStep = step;
-
-        return step / 10.0f;
+        if (filtered > maxValue) filtered = maxValue;
+        return roundf(filtered / roundTo) * roundTo;
     }
 
     void setSmoothFactor(float factor) {
         smoothFactor = factor;
+    }
+
+    void setRoundTo(float value) {
+        roundTo = value;
     }
 
 };

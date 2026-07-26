@@ -1,6 +1,6 @@
+#pragma once
+
 #include <Arduino.h>
-#include <WiFi.h>
-#include "esp_wifi.h"
 
 // https://github.com/pschatzmann/arduino-audio-tools
 // https://github.com/pschatzmann/arduino-libhelix
@@ -19,8 +19,8 @@ namespace RadioTochka {
         "http://91.218.213.49:8000/ur1-mp3";
 
         // I2S pins
-        constexpr int PIN_BCLK = 2;
-        constexpr int PIN_WS   = 5;
+        constexpr int PIN_BCLK = 7;
+        constexpr int PIN_WS   = 4;
         constexpr int PIN_DOUT = 6;
 
         URLStream urlStream;
@@ -36,49 +36,12 @@ namespace RadioTochka {
 
         StreamCopy copier(decoder, urlStream);
 
-        double currentVolume = 0.0;
+        double currentVolume = -1;
     }
 
-    bool connectToWiFi(String ssid, String password) {
-        WiFi.mode(WIFI_STA);
-        WiFi.persistent(false);
-        WiFi.setSleep(false);
-        esp_wifi_set_ps(WIFI_PS_NONE);
-        WiFi.setTxPower(WIFI_POWER_17dBm);
+    constexpr double MAX_VOLUME = 1.0;
 
-        WiFi.disconnect(false);
-        delay(500);
-
-        Serial.println("WiFi begin...");
-        WiFi.begin(ssid, password);
-
-        uint32_t start = millis();
-
-        while (millis() - start < 20000)
-        {
-            wl_status_t s = WiFi.status();
-
-            Serial.printf("status=%d RSSI=%d\n", s, WiFi.RSSI());
-
-            if (s == WL_CONNECTED)
-            {
-                Serial.println("WiFi connected");
-                Serial.println(WiFi.localIP());
-                return true;
-            }
-
-            delay(500);
-        }
-
-        Serial.println("WiFi connect timeout");
-
-        WiFi.disconnect(false);
-        delay(500);
-
-        return false;
-    }
-
-    void begin() {
+    inline void begin() {
         AudioLogger::instance().begin(Serial, AudioLogger::Warning);
 
         auto cfg = i2s.defaultConfig(TX_MODE);
@@ -89,43 +52,53 @@ namespace RadioTochka {
 
         i2s.begin(cfg);
 
+        auto info = i2s.audioInfo();
+
+        Serial.printf(
+            "sr=%d ch=%d bits=%d\n",
+            info.sample_rate,
+            info.channels,
+            info.bits_per_sample
+        );
+
+
         auto vcfg = volume.defaultConfig();
         vcfg.copyFrom(cfg);
         vcfg.allow_boost = true;
-        volume.setVolume(0.0);
+        volume.setVolume(0);
         volume.begin(vcfg);
 
         decoder.begin();
     }
 
-    void setVolume(double value) {
-        if (value < 0.0) value = 0.0;
-        if (value > 2.0) value = 2.0;
+    inline void setVolume(double value) {
+        if (value < MAX_VOLUME / 100.0) value = 0.0; // коли звук викручений в 0, все одно звук може пробиватись і "гавкати", приберем ці осціляції
+        if (value > MAX_VOLUME) value = MAX_VOLUME;
         if (currentVolume == value) return;
         currentVolume = value;
         volume.setVolume(currentVolume);
         Serial.printf("Volume set to %f\n",value);
     }
 
-    float getVolume() {
+    inline float getVolume() {
         return currentVolume;
     }
 
-    void volumeUp() {
+    inline void volumeUp() {
         setVolume(currentVolume + 0.1f);
     }
 
-    void volumeDown() {
+    inline void volumeDown() {
         setVolume(currentVolume - 0.1f);
     }
 
-    bool openStream() {
+    inline bool openStream() {
+        setVolume(0);
         Serial.println("URL stream begin");
         urlStream.end();
         delay(300);
 
-        if (urlStream.begin(url, "audio/mpeg"))
-        {
+        if (urlStream.begin(url, "audio/mpeg")) {
             Serial.println("URL stream opened");
             return true;
         }
@@ -135,7 +108,7 @@ namespace RadioTochka {
         }
     }
 
-    bool handleLoop() {
+    inline bool handleLoop() {
         return copier.copy() > 0;
     }
 
