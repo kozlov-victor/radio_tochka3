@@ -16,7 +16,8 @@ namespace RadioTochka {
     namespace {
         const char* url =
         //"http://online.radioroks.ua:8000/RadioROKS";
-        "http://91.218.213.49:8000/ur1-mp3";
+        //"http://91.218.213.49:8000/ur1-mp3";
+        "https://radio2.ukr.radio/ur1-mp3-m";
 
         // I2S pins
         constexpr int PIN_BCLK = 7;
@@ -72,7 +73,7 @@ namespace RadioTochka {
     }
 
     inline void setVolume(double value) {
-        if (value < MAX_VOLUME / 100.0) value = 0.0; // коли звук викручений в 0, все одно звук може пробиватись і "гавкати", приберем ці осціляції
+        //if (value < MAX_VOLUME / 100.0) value = 0.0; // коли звук викручений в 0, все одно звук може пробиватись і "гавкати", приберем ці осціляції
         if (value > MAX_VOLUME) value = MAX_VOLUME;
         if (currentVolume == value) return;
         currentVolume = value;

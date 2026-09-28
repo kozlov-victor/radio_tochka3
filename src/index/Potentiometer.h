@@ -2,8 +2,6 @@
 
 #include <Arduino.h>
 
-#include "RadioTochka.h"
-
 class Potentiometer {
 private:
     int pin;
@@ -11,7 +9,7 @@ private:
     int adcMax;
     float filtered = 0.0f;
     float smoothFactor = 0.85f; // 0.7 - smoother
-    float roundTo = 0.05;
+    float roundTo = 0.03;
 
 public:
     Potentiometer(const int pin,const float maxValue, const int adcMax = 4095):pin(pin),maxValue(maxValue),adcMax(adcMax) {}
